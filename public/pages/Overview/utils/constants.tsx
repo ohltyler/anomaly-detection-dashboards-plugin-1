@@ -61,6 +61,12 @@ const httpFieldMappings = {
   timestamp: {
     type: 'date',
   },
+  ip: {
+    type: 'ip',
+  },
+  endpoint: {
+    type: 'keyword',
+  },
   status_code: {
     type: 'integer',
   },
