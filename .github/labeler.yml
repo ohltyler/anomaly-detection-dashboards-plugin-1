@@ -9,6 +9,7 @@ backport 1.x:
 - '*/**/**/**/**/**/*'
 - '*/**/**/**/**/**/**/*'
 - '*/**/**/**/**/**/**/**/*'
+- '.github/**/*'
 
 # Any github-actions-related changes labeling as infra
 infra:
