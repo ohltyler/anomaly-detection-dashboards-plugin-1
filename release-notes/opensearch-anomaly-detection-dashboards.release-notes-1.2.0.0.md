@@ -2,6 +2,8 @@
 
 Compatible with OpenSearch Dashboards 1.2.0
 
+Updating this section of release notes.
+
 ### Features
 
 * support storing detector result to customr result index ([#110](https://github.com/opensearch-project/anomaly-detection-dashboards-plugin/pull/110))
