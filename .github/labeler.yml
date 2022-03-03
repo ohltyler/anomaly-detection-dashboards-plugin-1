@@ -1,6 +1,14 @@
 # Default all changes to backporting to 1.x branch
 backport 1.x:
 - '*'
+- '*/*'
+- '*/**/*'
+- '*/**/**/*'
+- '*/**/**/**/*'
+- '*/**/**/**/**/*'
+- '*/**/**/**/**/**/*'
+- '*/**/**/**/**/**/**/*'
+- '*/**/**/**/**/**/**/**/*'
 
 # Any github-actions-related changes labeling as infra
 infra:
@@ -8,4 +16,5 @@ infra:
 
 # Any changed markdown files or release notes changes labeling as documentation
 documentation:
-- any: ['*.md', 'release-notes/*']
+- '*.md'
+- 'release-notes/*'
