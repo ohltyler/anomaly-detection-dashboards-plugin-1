@@ -9,8 +9,6 @@
  * GitHub history for details.
  */
 
-// dummy comment
-
 export const BASE_NODE_API_PATH = '/api/anomaly_detectors';
 
 export const AD_NODE_API = Object.freeze({
