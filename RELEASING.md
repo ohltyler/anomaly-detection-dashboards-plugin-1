@@ -1,1 +1,3 @@
 This project follows the [OpenSearch release process](https://github.com/opensearch-project/.github/blob/main/RELEASING.md).
+
+Change this file.
