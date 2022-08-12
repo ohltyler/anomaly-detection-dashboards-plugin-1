@@ -20,12 +20,28 @@ import {
   AnomalyDetectionOpenSearchDashboardsPluginSetup,
   AnomalyDetectionOpenSearchDashboardsPluginStart,
 } from '.';
+import {
+  ExpressionsSetup,
+  ExpressionsStart,
+} from '../../../src/plugins/expressions/public';
+import { overlayAnomaliesFunction } from './expressions';
+
+export interface AnomalyDetectionOpenSearchDashboardsPluginSetupDeps {
+  expressions: ExpressionsSetup;
+}
+
+// TODO: may not need expressions. See comment above start().
+export interface AnomalyDetectionOpenSearchDashboardsPluginStartDeps {
+  expressions: ExpressionsStart;
+}
 
 export class AnomalyDetectionOpenSearchDashboardsPlugin
   implements
     Plugin<
       AnomalyDetectionOpenSearchDashboardsPluginSetup,
-      AnomalyDetectionOpenSearchDashboardsPluginStart
+      AnomalyDetectionOpenSearchDashboardsPluginStart,
+      AnomalyDetectionOpenSearchDashboardsPluginSetupDeps,
+      AnomalyDetectionOpenSearchDashboardsPluginStartDeps
     >
 {
   constructor(private readonly initializerContext: PluginInitializerContext) {
@@ -33,7 +49,11 @@ export class AnomalyDetectionOpenSearchDashboardsPlugin
   }
 
   public setup(
-    core: CoreSetup
+    core: CoreSetup<
+      AnomalyDetectionOpenSearchDashboardsPluginStartDeps,
+      AnomalyDetectionOpenSearchDashboardsPluginStart
+    >,
+    { expressions }: AnomalyDetectionOpenSearchDashboardsPluginSetupDeps
   ): AnomalyDetectionOpenSearchDashboardsPluginSetup {
     core.application.register({
       id: 'anomaly-detection-dashboards',
@@ -50,9 +70,16 @@ export class AnomalyDetectionOpenSearchDashboardsPlugin
         return renderApp(coreStart, params);
       },
     });
+
+    // Register the expression fn to overlay anomalies on a given datatable
+    expressions.registerFunction(overlayAnomaliesFunction);
+
     return {};
   }
 
+  // May not need to do the common pattern of setExpressions(expressions) here, which is used to
+  // populate a bunch of getters/setters in a services.ts file, to fetch the services when used in downstream components
+  // ex: setExpressions() here, then use getExpressions() to execute some expressions fn in some react component
   public start(
     core: CoreStart
   ): AnomalyDetectionOpenSearchDashboardsPluginStart {
