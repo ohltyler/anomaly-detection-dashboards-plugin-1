@@ -36,14 +36,27 @@ import {
   OpenSearchDashboardsDatatableColumn,
   ExpressionFunctionDefinition,
 } from '../../../../src/plugins/expressions/public';
-import { Filter, Query } from '../../../../src/plugins/data/common';
+import {
+  Filter,
+  Query,
+  TimeRange,
+  calculateBounds,
+} from '../../../../src/plugins/data/common';
 import { getParsedValue } from '../../../../src/plugins/expressions/common';
+import {
+  getAnomalySummaryQuery,
+  parsePureAnomalies,
+} from '../pages/utils/anomalyResultUtils';
+import { AD_NODE_API } from '../../utils/constants';
+import { AnomalyData } from '../models/interfaces';
+import { getClient } from '../services';
 
 type Input = OpenSearchDashboardsDatatable;
 type Output = Promise<OpenSearchDashboardsDatatable>;
 
 interface Arguments {
   context: string | null;
+  detectorId: string;
 }
 
 const name = 'overlay_anomalies';
@@ -51,9 +64,37 @@ const name = 'overlay_anomalies';
 export type OverlayAnomaliesExpressionFunctionDefinition =
   ExpressionFunctionDefinition<'overlay_anomalies', Input, Arguments, Output>;
 
+const getAnomalies = async (
+  detectorId: string,
+  startTime: number,
+  endTime: number
+) => {
+  // get the raw anomalies + aggs (aggs may not be needed, but leave in for now)
+  const anomalySummaryQuery = getAnomalySummaryQuery(
+    startTime,
+    endTime,
+    detectorId,
+    undefined,
+    false
+  );
+
+  // We set the http client in the plugin.ts setup() fn. We pull it in here to make a
+  // server-side call directly.
+  //
+  // Note we can't use the redux fns here (e.g., searchResults()) since it requires
+  // hooks (e.g., useDispatch()) which doesn't make sense in this context, plus is not allowed by React.
+  const anomalySummaryResponse = await getClient().post(
+    `..${AD_NODE_API.DETECTOR}/results/_search`,
+    {
+      body: JSON.stringify(anomalySummaryQuery),
+    }
+  );
+  return parsePureAnomalies(anomalySummaryResponse);
+};
+
 const appendAnomaliesToTable = (
   dataTable: OpenSearchDashboardsDatatable,
-  anomalies: any[]
+  anomalies: AnomalyData[]
 ) => {
   const AD_COLUMN_ID = 'ad';
   const newDataTable = cloneDeep(dataTable);
@@ -118,17 +159,45 @@ export const overlayAnomaliesFunction =
         default: '{}',
         help: '',
       },
+      detectorId: {
+        types: ['string'],
+        default: '""',
+        help: '',
+      },
     },
+
     async fn(input, args) {
+      const detectorId = getParsedValue(args.detectorId, '');
+
+      // TODO: may not need contextual args at all, since we're just fetching the raw
+      // anomaly results. Keep for now.
       const context = getParsedValue(args.context, {});
       const query = get(context, 'query', {}) as Query;
       const filters = get(context, 'filters', []) as Filter[];
 
-      console.log('in overlay_anomalies expr fn');
-      console.log('query: ', query);
-      console.log('filters: ', filters);
+      const timeRange = get(context, 'timeRange', null) as TimeRange;
+      const parsedTimeRange = timeRange ? calculateBounds(timeRange) : null;
+      const startTimeInMillis = parsedTimeRange?.min?.unix()
+        ? parsedTimeRange?.min?.unix() * 1000
+        : undefined;
+      const endTimeInMillis = parsedTimeRange?.max?.unix()
+        ? parsedTimeRange?.max?.unix() * 1000
+        : undefined;
 
-      const augmentedTable = appendAnomaliesToTable(input, []);
+      // making sure we can actually fetch anomalies
+      if (startTimeInMillis === undefined || endTimeInMillis === undefined) {
+        console.log('start or end time invalid');
+        return input;
+      }
+
+      const anomalies = await getAnomalies(
+        detectorId,
+        startTimeInMillis,
+        endTimeInMillis
+      );
+      console.log('anomalies: ', anomalies);
+      const augmentedTable = appendAnomaliesToTable(input, anomalies);
+      console.log('augmented table: ', augmentedTable);
 
       //   const table: OpenSearchDashboardsDatatable = {
       //     type: 'opensearch_dashboards_datatable',

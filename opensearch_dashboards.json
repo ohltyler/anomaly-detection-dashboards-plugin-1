@@ -3,7 +3,7 @@
   "version": "2.1.0.0",
   "opensearchDashboardsVersion": "2.1.0",
   "configPath": ["anomaly_detection_dashboards"],
-  "requiredPlugins": ["expressions"],
+  "requiredPlugins": ["expressions", "data", "opensearchDashboardsUtils"],
   "optionalPlugins": [],
   "server": true,
   "ui": true
