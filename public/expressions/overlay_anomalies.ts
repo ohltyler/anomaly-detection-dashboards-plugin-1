@@ -35,6 +35,7 @@ import {
   OpenSearchDashboardsDatatableRow,
   OpenSearchDashboardsDatatableColumn,
   ExpressionFunctionDefinition,
+  VisData,
 } from '../../../../src/plugins/expressions/public';
 import {
   Filter,
@@ -51,8 +52,8 @@ import { AD_NODE_API } from '../../utils/constants';
 import { AnomalyData } from '../models/interfaces';
 import { getClient } from '../services';
 
-type Input = OpenSearchDashboardsDatatable;
-type Output = Promise<OpenSearchDashboardsDatatable>;
+type Input = VisData;
+type Output = Promise<VisData>;
 
 interface Arguments {
   context: string | null;
@@ -93,63 +94,83 @@ const getAnomalies = async (
 };
 
 const appendAnomaliesToTable = (
-  dataTable: OpenSearchDashboardsDatatable,
+  datatable: OpenSearchDashboardsDatatable,
   anomalies: AnomalyData[]
 ) => {
   const AD_COLUMN_ID = 'ad';
-  const newDataTable = cloneDeep(dataTable);
-  //   console.log('newDataTable (before): ', newDataTable);
-  //   console.log('anomalies: ', anomalies);
+  const newDatatable = cloneDeep(datatable);
 
-  //   // append a new column
-  //   newDataTable.columns = [
-  //     ...newDataTable.columns,
-  //     {
-  //       id: AD_COLUMN_ID,
-  //       name: 'Anomaly',
-  //     } as OpenSearchDashboardsDatatableColumn,
-  //   ];
+  // append a new column
+  newDatatable.columns = [
+    ...newDatatable.columns,
+    {
+      id: AD_COLUMN_ID,
+      name: 'Anomaly',
+    } as OpenSearchDashboardsDatatableColumn,
+  ];
 
-  //   // for each anomaly, find the correct time bucket it goes in and add the anomaly value there in the AD column
-  //   // reverse it since the initial results are returned in reverse sequential order
-  //   let rowIndex = 0;
-  //   anomalies.reverse().forEach((anomaly: any) => {
-  //     let found = false;
-  //     while (rowIndex < newDataTable.rows.length - 1 && !found) {
-  //       // assuming the first column in the rows data is the x-axis / timestamp values.
-  //       // probably need to find a better way to guarantee this
-  //       const startTs = newDataTable.rows[rowIndex][
-  //         Object.keys(newDataTable.rows[rowIndex])[0]
-  //       ] as number;
-  //       const endTs = newDataTable.rows[rowIndex + 1][
-  //         Object.keys(newDataTable.rows[rowIndex + 1])[0]
-  //       ] as number;
+  // for each anomaly, find the correct time bucket it goes in and add the anomaly value there in the AD column
+  // reverse it since the initial results are returned in reverse sequential order
+  let rowIndex = 0;
+  anomalies.reverse().forEach((anomaly: any) => {
+    let found = false;
+    while (rowIndex < newDatatable.rows.length - 1 && !found) {
+      // assuming the first column in the rows data is the x-axis / timestamp values.
+      // probably need to find a better way to guarantee this
+      const startTs = newDatatable.rows[rowIndex][
+        Object.keys(newDatatable.rows[rowIndex])[0]
+      ] as number;
+      const endTs = newDatatable.rows[rowIndex + 1][
+        Object.keys(newDatatable.rows[rowIndex + 1])[0]
+      ] as number;
 
-  //       if (startTs <= anomaly.plotTime && endTs > anomaly.plotTime) {
-  //         // adding hacky soln of choosing the first y-series data to overlay anomaly spike
-  //         // this is strictly for making it easier to show correlation of the data w/ the anomaly
-  //         const firstYVal = newDataTable.rows[rowIndex][
-  //           Object.keys(newDataTable.rows[rowIndex])[1]
-  //         ] as number;
-  //         newDataTable.rows[rowIndex] = {
-  //           ...newDataTable.rows[rowIndex],
-  //           [AD_COLUMN_ID]: firstYVal,
-  //         };
-  //         found = true;
-  //       } else {
-  //         rowIndex++;
-  //       }
-  //     }
-  //   });
-  //   console.log('newDataTable (after): ', newDataTable);
-  return newDataTable;
+      if (startTs <= anomaly.plotTime && endTs > anomaly.plotTime) {
+        // adding hacky soln of choosing the first y-series data to overlay anomaly spike
+        // this is strictly for making it easier to show correlation of the data w/ the anomaly
+        const firstYVal = newDatatable.rows[rowIndex][
+          Object.keys(newDatatable.rows[rowIndex])[1]
+        ] as number;
+        newDatatable.rows[rowIndex] = {
+          ...newDatatable.rows[rowIndex],
+          [AD_COLUMN_ID]: firstYVal,
+        };
+        found = true;
+      } else {
+        rowIndex++;
+      }
+    }
+  });
+  return newDatatable;
+};
+
+const appendAdDimensionToConfig = (
+  visConfig: any,
+  datatable: OpenSearchDashboardsDatatable
+) => {
+  const config = cloneDeep(visConfig);
+
+  // the AD column is appended last. All previous dimensions are incremented sequentially starting from 0.
+  // So given 1 x-axis column (accessor=0), 1 y-axis metric column (accessor=1), and 1 y-axis AD column,
+  // the accessor should be 2 (column length -1).
+  const adAccessor = datatable.columns.length - 1;
+
+  // TODO: see if this has changed to 'metric' based on new vis schemas
+  config.dimensions.y.push({
+    accessor: adAccessor,
+    //aggType: 'avg',
+    format: {},
+    label: 'Anomaly',
+    params: {},
+  });
+
+  return config;
 };
 
 export const overlayAnomaliesFunction =
   (): OverlayAnomaliesExpressionFunctionDefinition => ({
     name,
-    type: 'opensearch_dashboards_datatable',
-    inputTypes: ['opensearch_dashboards_datatable'],
+    type: 'vis_data',
+    inputTypes: ['vis_data'],
     help: i18n.translate('data.functions.overlay_anomalies.help', {
       defaultMessage: 'Overlays anomaly results on an existing datatable',
     }),
@@ -168,6 +189,9 @@ export const overlayAnomaliesFunction =
 
     async fn(input, args) {
       const detectorId = getParsedValue(args.detectorId, '');
+
+      const origVisConfig = get(input, 'visConfig', {});
+      const origDatatable = get(input, 'datatable', {});
 
       // TODO: may not need contextual args at all, since we're just fetching the raw
       // anomaly results. Keep for now.
@@ -195,27 +219,34 @@ export const overlayAnomaliesFunction =
         startTimeInMillis,
         endTimeInMillis
       );
-      console.log('anomalies: ', anomalies);
-      const augmentedTable = appendAnomaliesToTable(input, anomalies);
-      console.log('augmented table: ', augmentedTable);
 
-      //   const table: OpenSearchDashboardsDatatable = {
-      //     type: 'opensearch_dashboards_datatable',
-      //     rows: augmentedTable.rows,
-      //     columns: augmentedTable.columns.map((column: any) => {
-      //       const cleanedColumn: OpenSearchDashboardsDatatableColumn = {
-      //         id: column.id,
-      //         name: column.name,
-      //         meta: serializeAggConfig(column.aggConfig),
-      //       };
-      //       if (args.includeFormatHints) {
-      //         cleanedColumn.formatHint =
-      //           column.aggConfig.toSerializedFieldFormat();
-      //       }
-      //       return cleanedColumn;
-      //     }),
-      //   };
+      const augmentedTable = appendAnomaliesToTable(origDatatable, anomalies);
+      const updatedVisConfig = appendAdDimensionToConfig(
+        origVisConfig,
+        augmentedTable
+      );
 
-      return augmentedTable;
+      // const table: OpenSearchDashboardsdatatable = {
+      //   type: 'opensearch_dashboards_datatable',
+      //   rows: augmentedTable.rows,
+      //   columns: augmentedTable.columns.map((column: any) => {
+      //     const cleanedColumn: OpenSearchDashboardsdatatableColumn = {
+      //       id: column.id,
+      //       name: column.name,
+      //       meta: serializeAggConfig(column.aggConfig),
+      //     };
+      //     if (args.includeFormatHints) {
+      //       cleanedColumn.formatHint =
+      //         column.aggConfig.toSerializedFieldFormat();
+      //     }
+      //     return cleanedColumn;
+      //   }),
+      // };
+
+      return {
+        type: 'vis_data',
+        datatable: augmentedTable,
+        visConfig: updatedVisConfig,
+      };
     },
   });
