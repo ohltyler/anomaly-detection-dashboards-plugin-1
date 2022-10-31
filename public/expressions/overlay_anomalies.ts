@@ -101,13 +101,15 @@ const getAnomalies = async (
 
 const convertAnomaliesToAnnotations = (
   anomalies: AnomalyData[]
-): Annotation[] => {
-  return anomalies.map((anomaly: AnomalyData) => {
-    return {
-      name: 'anomaly',
-      timestamp: anomaly.startTime + (anomaly.endTime - anomaly.startTime) / 2,
-    } as Annotation;
-  });
+): Annotation => {
+  let timestamps = anomalies.map(
+    (anomaly: AnomalyData) =>
+      anomaly.startTime + (anomaly.endTime - anomaly.startTime) / 2
+  );
+  return {
+    name: 'anomaly',
+    timestamps: timestamps,
+  };
 };
 
 const appendAnomaliesToTable = (
@@ -235,7 +237,7 @@ export const overlayAnomaliesFunction =
       );
 
       const annotations = convertAnomaliesToAnnotations(anomalies);
-      console.log('annotations: ', annotations);
+      //console.log('annotations: ', annotations);
 
       // const augmentedTable = appendAnomaliesToTable(origDatatable, anomalies);
       // const updatedVisConfig = appendAdDimensionToConfig(
@@ -266,8 +268,8 @@ export const overlayAnomaliesFunction =
         data: {
           ...origAugmentVisFields,
           annotations: origAugmentVisFields.annotations
-            ? annotations.concat(annotations)
-            : annotations,
+            ? origAugmentVisFields.annotations.concat(annotations)
+            : [annotations],
         },
       };
     },
