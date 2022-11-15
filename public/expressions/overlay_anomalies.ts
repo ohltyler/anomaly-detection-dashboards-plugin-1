@@ -35,11 +35,13 @@ import {
   OpenSearchDashboardsDatatableRow,
   OpenSearchDashboardsDatatableColumn,
   ExpressionFunctionDefinition,
-  AugmentVisData,
+  ExprVisLayers,
 } from '../../../../src/plugins/expressions/public';
 import {
-  AugmentVisFields,
-  Annotation,
+  VisLayer,
+  VisLayers,
+  PointInTimeEvent,
+  PointInTimeEventsVisLayer,
 } from '../../../../src/plugins/visualizations/public';
 import {
   Filter,
@@ -56,8 +58,8 @@ import { AD_NODE_API } from '../../utils/constants';
 import { AnomalyData } from '../models/interfaces';
 import { getClient } from '../services';
 
-type Input = AugmentVisData;
-type Output = Promise<AugmentVisData>;
+type Input = ExprVisLayers;
+type Output = Promise<ExprVisLayers>;
 
 interface Arguments {
   detectorId: string;
@@ -99,17 +101,20 @@ const getAnomalies = async (
   return parsePureAnomalies(anomalySummaryResponse);
 };
 
-const convertAnomaliesToAnnotations = (
+const convertAnomaliesToLayer = (
   anomalies: AnomalyData[]
-): Annotation => {
-  let timestamps = anomalies.map(
-    (anomaly: AnomalyData) =>
-      anomaly.startTime + (anomaly.endTime - anomaly.startTime) / 2
-  );
+): PointInTimeEventsVisLayer => {
+  const events = anomalies.map((anomaly: AnomalyData) => {
+    return {
+      timestamp: anomaly.startTime + (anomaly.endTime - anomaly.startTime) / 2,
+      metadata: {},
+    } as PointInTimeEvent;
+  });
   return {
-    name: 'anomaly',
-    timestamps: timestamps,
-  };
+    name: 'anomaly-events',
+    events: events,
+    format: 'some-format',
+  } as PointInTimeEventsVisLayer;
 };
 
 const appendAnomaliesToTable = (
@@ -188,10 +193,10 @@ const appendAdDimensionToConfig = (
 export const overlayAnomaliesFunction =
   (): OverlayAnomaliesExpressionFunctionDefinition => ({
     name,
-    type: 'augment_vis_data',
-    inputTypes: ['augment_vis_data'],
+    type: 'vis_layers',
+    inputTypes: ['vis_layers'],
     help: i18n.translate('data.functions.overlay_anomalies.help', {
-      defaultMessage: 'Overlays anomaly results on an existing datatable',
+      defaultMessage: 'Add an anomaly vis layer',
     }),
     args: {
       detectorId: {
@@ -201,7 +206,7 @@ export const overlayAnomaliesFunction =
       },
     },
 
-    async fn(input, args, context): Promise<AugmentVisData> {
+    async fn(input, args, context): Promise<ExprVisLayers> {
       // Parsing all of the args & input
       const detectorId = get(args, 'detectorId', '');
       const timeRange = get(
@@ -209,9 +214,9 @@ export const overlayAnomaliesFunction =
         'searchContext.timeRange',
         ''
       ) as TimeRange;
-      const origAugmentVisFields = get(input, 'data', {
-        annotations: [] as Annotation[],
-      }) as AugmentVisFields;
+      const origVisLayers = get(input, 'layers', {
+        layers: [] as VisLayers,
+      }) as VisLayers;
       const parsedTimeRange = timeRange ? calculateBounds(timeRange) : null;
       const startTimeInMillis = parsedTimeRange?.min?.unix()
         ? parsedTimeRange?.min?.unix() * 1000
@@ -225,8 +230,8 @@ export const overlayAnomaliesFunction =
       if (startTimeInMillis === undefined || endTimeInMillis === undefined) {
         console.log('start or end time invalid');
         return {
-          type: 'augment_vis_data',
-          data: origAugmentVisFields,
+          type: 'vis_layers',
+          layers: origVisLayers,
         };
       }
 
@@ -236,8 +241,7 @@ export const overlayAnomaliesFunction =
         endTimeInMillis
       );
 
-      const annotations = convertAnomaliesToAnnotations(anomalies);
-      //console.log('annotations: ', annotations);
+      const anomalyLayer = convertAnomaliesToLayer(anomalies);
 
       // const augmentedTable = appendAnomaliesToTable(origDatatable, anomalies);
       // const updatedVisConfig = appendAdDimensionToConfig(
@@ -262,15 +266,12 @@ export const overlayAnomaliesFunction =
       //   }),
       // };
 
-      // adding new annotations to the annotations field
+      // adding the anomaly layer to the list of VisLayers
       return {
-        type: 'augment_vis_data',
-        data: {
-          ...origAugmentVisFields,
-          annotations: origAugmentVisFields.annotations
-            ? origAugmentVisFields.annotations.concat(annotations)
-            : [annotations],
-        },
+        type: 'vis_layers',
+        layers: origVisLayers
+          ? origVisLayers.concat(anomalyLayer)
+          : [anomalyLayer],
       };
     },
   });
