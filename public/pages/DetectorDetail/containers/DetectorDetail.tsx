@@ -382,7 +382,7 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
                   // create the fields needed for the saved obj
                   const savedObjectToCreate = {
                     pluginResourceId: detectorId,
-                    savedObjectId: '0d0b6850-56ee-11ed-9043-0370c51f768c',
+                    savedObjectId: '2d8ad070-66b1-11ed-998e-b142764c0a2d',
                     augmentExpressionFn: {
                       type: 'PointInTimeEventsVisLayer',
                       name: 'overlay_anomalies',
