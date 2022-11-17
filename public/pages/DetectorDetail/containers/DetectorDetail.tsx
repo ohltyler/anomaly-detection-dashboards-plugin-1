@@ -57,9 +57,11 @@ import {
 } from '../../../../server/utils/helpers';
 import { DETECTOR_STATE } from '../../../../server/utils/constants';
 import { CatIndex } from '../../../../server/models/types';
-import { containsIndex } from '../utils/helpers';
-import { getSavedFeatureAnywhereLoader } from '../../../services';
-import { FeatureAnywhereSavedObject } from '../../../../../../src/plugins/visualizations/public';
+import {
+  ISavedFeatureAnywhere,
+  createFeatureAnywhereSavedObject,
+  FeatureAnywhereSavedObject,
+} from '../../../../../../src/plugins/visualizations/public';
 
 export interface DetectorRouterProps {
   detectorId?: string;
@@ -376,8 +378,6 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
               <EuiButton
                 onClick={async () => {
                   console.log('creating saved obj for this detector...');
-                  // get the loader to create or fetch feature anywhere saved objects with
-                  const featureAnywhereLoader = getSavedFeatureAnywhereLoader();
 
                   // create the fields needed for the saved obj
                   const savedObjectToCreate = {
@@ -390,16 +390,20 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
                         detectorId: detectorId,
                       },
                     },
-                  };
+                  } as ISavedFeatureAnywhere;
 
-                  // create/instantiate the saved obj using the fields set from above.
-                  // alternatively, could pass an ID which would fetch any saved object
-                  // with a matching ID
-                  // NOTE: this just creates the saved object class that can be used to save-
-                  // it doesn't persist anything regarding the system index or anything
-                  let newSavedObj = (await featureAnywhereLoader.get(
+                  // helper fn to create the saved object given an object implementing the
+                  // ISavedFeatureAnywhere interface.
+                  // Note that we actually don't have a hard dep on the feature anywhere loader yet,
+                  // since we have a dependency on visualizations which has a dependency on the
+                  // feature anywhere loader. But we will probably need later when
+                  // using the loader's search functionalities within the UI components.
+
+                  // TODO: handle failures if it fails to create
+                  let newSavedObj = (await createFeatureAnywhereSavedObject(
                     savedObjectToCreate
                   )) as FeatureAnywhereSavedObject;
+                  console.log('new created object: ', newSavedObj);
 
                   // calling save() on the newly-created saved object to actually save it to the system index
                   const response = await newSavedObj.save({});
