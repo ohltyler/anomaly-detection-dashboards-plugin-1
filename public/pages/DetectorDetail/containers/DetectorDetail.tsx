@@ -58,6 +58,8 @@ import {
 import { DETECTOR_STATE } from '../../../../server/utils/constants';
 import { CatIndex } from '../../../../server/models/types';
 import { containsIndex } from '../utils/helpers';
+import { getSavedFeatureAnywhereLoader } from '../../../services';
+import { FeatureAnywhereSavedObject } from '../../../../../../src/plugins/visualizations/public';
 
 export interface DetectorRouterProps {
   detectorId?: string;
@@ -370,7 +372,43 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
                 {<h1>{detector && detector.name} </h1>}
               </EuiTitle>
             </EuiFlexItem>
+            <EuiFlexItem grow={false} style={{ marginTop: '16px' }}>
+              <EuiButton
+                onClick={async () => {
+                  console.log('creating saved obj for this detector...');
+                  // get the loader to create or fetch feature anywhere saved objects with
+                  const featureAnywhereLoader = getSavedFeatureAnywhereLoader();
 
+                  // create the fields needed for the saved obj
+                  const savedObjectToCreate = {
+                    pluginResourceId: detectorId,
+                    savedObjectId: '0d0b6850-56ee-11ed-9043-0370c51f768c',
+                    augmentExpressionFn: {
+                      type: 'PointInTimeEventsVisLayer',
+                      name: 'overlay_anomalies',
+                      args: {
+                        detectorId: detectorId,
+                      },
+                    },
+                  };
+
+                  // create/instantiate the saved obj using the fields set from above.
+                  // alternatively, could pass an ID which would fetch any saved object
+                  // with a matching ID
+                  // NOTE: this just creates the saved object class that can be used to save-
+                  // it doesn't persist anything regarding the system index or anything
+                  let newSavedObj = (await featureAnywhereLoader.get(
+                    savedObjectToCreate
+                  )) as FeatureAnywhereSavedObject;
+
+                  // calling save() on the newly-created saved object to actually save it to the system index
+                  const response = await newSavedObj.save({});
+                  console.log('response: ', response);
+                }}
+              >
+                {'Create saved object'}
+              </EuiButton>
+            </EuiFlexItem>
             <EuiFlexItem grow={false}>
               <DetectorControls
                 onEditDetector={handleEditDetector}

@@ -33,6 +33,7 @@ import { createGetterSetter } from '../../../src/plugins/opensearch_dashboards_u
 //import { IndexPatternsContract } from '../../../src/plugins/index_patterns';
 import { DataPublicPluginStart } from '../../../src/plugins/data/public';
 import { CoreStart } from '../../../src/core/public';
+import { SavedObjectLoader } from '../../../src/plugins/saved_objects/public';
 
 // export const [getNotifications, setNotifications] = createGetterSetter<NotificationsStart>(
 //   'Notifications'
@@ -57,3 +58,7 @@ export const [getSearchService, setSearchService] =
 
 export const [getClient, setClient] =
   createGetterSetter<CoreStart['http']>('http');
+
+// TODO: may move to a standalone plugin
+export const [getSavedFeatureAnywhereLoader, setSavedFeatureAnywhereLoader] =
+  createGetterSetter<SavedObjectLoader>('savedFeatureAnywhereLoader');

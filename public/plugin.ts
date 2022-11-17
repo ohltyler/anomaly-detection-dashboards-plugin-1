@@ -29,7 +29,12 @@ import {
   DataPublicPluginSetup,
   DataPublicPluginStart,
 } from '../../../src/plugins/data/public';
-import { setSearchService, setClient } from './services';
+import { createSavedFeatureAnywhereLoader } from '../../../src/plugins/visualizations/public';
+import {
+  setSearchService,
+  setClient,
+  setSavedFeatureAnywhereLoader,
+} from './services';
 
 export interface AnomalyDetectionOpenSearchDashboardsPluginSetupDeps {
   expressions: ExpressionsSetup;
@@ -98,6 +103,18 @@ export class AnomalyDetectionOpenSearchDashboardsPlugin
     // TODO: as of now, we aren't using this search service. Keep for now in case
     // it will be needed later (to construct SearchSources, for example).
     setSearchService(data.search);
+
+    // Generate the feature anywhere loader
+    // TODO: this may be imported from somewhere other than visualizations later on
+    const savedFeatureAnywhereLoader = createSavedFeatureAnywhereLoader({
+      savedObjectsClient: core.savedObjects.client,
+      indexPatterns: data.indexPatterns,
+      search: data.search,
+      chrome: core.chrome,
+      overlays: core.overlays,
+    });
+    setSavedFeatureAnywhereLoader(savedFeatureAnywhereLoader);
+
     return {};
   }
 }
