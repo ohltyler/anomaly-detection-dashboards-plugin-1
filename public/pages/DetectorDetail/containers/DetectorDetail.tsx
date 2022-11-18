@@ -382,7 +382,8 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
                   // create the fields needed for the saved obj
                   const savedObjectToCreate = {
                     pluginResourceId: detectorId,
-                    savedObjectId: '2d8ad070-66b1-11ed-998e-b142764c0a2d',
+                    savedObjectId: 'b30de0f0-6771-11ed-b82a-0fe343696c13',
+                    savedObjectRefType: 'visualization',
                     augmentExpressionFn: {
                       type: 'PointInTimeEventsVisLayer',
                       name: 'overlay_anomalies',
@@ -391,6 +392,8 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
                       },
                     },
                   } as ISavedFeatureAnywhere;
+
+                  //console.log('saved obj to create: ', savedObjectToCreate);
 
                   // helper fn to create the saved object given an object implementing the
                   // ISavedFeatureAnywhere interface.
