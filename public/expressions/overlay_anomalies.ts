@@ -84,6 +84,7 @@ const getAnomalies = async (
     // regularly this should be false. setting to true to use historical
     // to quickly get some results
     // false
+    // TODO: remove this and set to false when done testing
     true
   );
 
