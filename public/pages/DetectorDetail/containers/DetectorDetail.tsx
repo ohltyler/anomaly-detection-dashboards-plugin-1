@@ -58,6 +58,11 @@ import {
 import { DETECTOR_STATE } from '../../../../server/utils/constants';
 import { CatIndex } from '../../../../server/models/types';
 import { containsIndex } from '../utils/helpers';
+import {
+  ISavedAugmentVis,
+  createAugmentVisSavedObject,
+  AugmentVisSavedObject,
+} from '../../../../../../src/plugins/vis_augmenter/public';
 
 export interface DetectorRouterProps {
   detectorId?: string;
@@ -369,6 +374,49 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
               <EuiTitle size="l" data-test-subj="detectorNameHeader">
                 {<h1>{detector && detector.name} </h1>}
               </EuiTitle>
+            </EuiFlexItem>
+            <EuiFlexItem grow={false} style={{ marginTop: '16px' }}>
+              <EuiButton
+                onClick={async () => {
+                  console.log('creating saved obj for this detector...');
+
+                  // create the fields needed for the saved obj
+                  const savedObjectToCreate = {
+                    pluginResourceId: detectorId,
+                    visId: 'test-vis-id',
+                    visLayerExpressionFn: {
+                      type: 'PointInTimeEvents',
+                      name: 'overlay_anomalies',
+                      args: {
+                        detectorId: detectorId,
+                      },
+                    },
+                  } as ISavedAugmentVis;
+
+                  //console.log('saved obj to create: ', savedObjectToCreate);
+
+                  // helper fn to create the saved object given an object implementing the
+                  // ISavedFeatureAnywhere interface.
+                  // Note that we actually don't have a hard dep on the feature anywhere loader yet,
+                  // since we have a dependency on visualizations which has a dependency on the
+                  // feature anywhere loader. But we will probably need later when
+                  // using the loader's search functionalities within the UI components.
+
+                  // TODO: handle failures if it fails to create
+                  let newSavedObj = (await createAugmentVisSavedObject(
+                    savedObjectToCreate
+                  )) as AugmentVisSavedObject;
+
+                  // calling save() on the newly-created saved object to actually save it to the system index
+                  const response = await newSavedObj.save({});
+                  console.log('response: ', response);
+                  core.notifications.toasts.addSuccess(
+                    'Saved object created for detector ' + detector.name
+                  );
+                }}
+              >
+                {'Create saved object'}
+              </EuiButton>
             </EuiFlexItem>
 
             <EuiFlexItem grow={false}>
