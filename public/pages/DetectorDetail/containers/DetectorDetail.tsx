@@ -379,11 +379,12 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
               <EuiButton
                 onClick={async () => {
                   console.log('creating saved obj for this detector...');
+                  const testVisId = 'af471f00-886d-11ed-91e1-a18467d809eb';
 
                   // create the fields needed for the saved obj
                   const savedObjectToCreate = {
                     pluginResourceId: detectorId,
-                    visId: 'test-vis-id',
+                    visId: testVisId,
                     visLayerExpressionFn: {
                       type: 'PointInTimeEvents',
                       name: 'overlay_anomalies',
@@ -411,7 +412,10 @@ export const DetectorDetail = (props: DetectorDetailProps) => {
                   const response = await newSavedObj.save({});
                   console.log('response: ', response);
                   core.notifications.toasts.addSuccess(
-                    'Saved object created for detector ' + detector.name
+                    'Saved object created for detector ' +
+                      detector.name +
+                      ' for vis ID ' +
+                      testVisId
                   );
                 }}
               >
