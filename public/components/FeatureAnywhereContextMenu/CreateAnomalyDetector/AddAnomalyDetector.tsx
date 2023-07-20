@@ -204,15 +204,12 @@ function AddAnomalyDetector({
             const maxAssociatedCount = uiSettings.get(
               PLUGIN_AUGMENTATION_MAX_OBJECTS_SETTING
             );
-            await savedObjectLoader.findAll().then(async (resp) => {
+            await savedObjectLoader.findAll('', 100, [], {
+              type: 'visualization',
+              id: embeddable.vis.id as string,
+            }).then(async (resp) => {
               if (resp !== undefined) {
-                const savedAugmentObjects = get(resp, 'hits', []);
-                // gets all the saved object for this visualization
-                const savedObjectsForThisVisualization =
-                  savedAugmentObjects.filter(
-                    (savedObj) =>
-                      get(savedObj, 'visId', '') === embeddable.vis.id
-                  );
+                const savedObjectsForThisVisualization = get(resp, 'hits', []);
                 if (
                   maxAssociatedCount <= savedObjectsForThisVisualization.length
                 ) {
@@ -244,13 +241,12 @@ function AddAnomalyDetector({
 
   useEffect(async () => {
     // Gets all augmented saved objects
-    await savedObjectLoader.findAll().then(async (resp) => {
+    await savedObjectLoader.findAll('', 100, [], {
+      type: 'visualization',
+      id: embeddable.vis.id as string,
+    }).then(async (resp) => {
       if (resp !== undefined) {
-        const savedAugmentObjects = get(resp, 'hits', []);
-        // gets all the saved object for this visualization
-        const savedObjectsForThisVisualization = savedAugmentObjects.filter(
-          (savedObj) => get(savedObj, 'visId', '') === embeddable.vis.id
-        );
+        const savedObjectsForThisVisualization = get(resp, 'hits', []);
         if (maxAssociatedCount <= savedObjectsForThisVisualization.length) {
           setAssociationLimitReached(true);
         } else {
