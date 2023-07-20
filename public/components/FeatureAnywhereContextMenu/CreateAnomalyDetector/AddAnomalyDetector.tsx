@@ -204,25 +204,32 @@ function AddAnomalyDetector({
             const maxAssociatedCount = uiSettings.get(
               PLUGIN_AUGMENTATION_MAX_OBJECTS_SETTING
             );
-            await savedObjectLoader.findAll('', 100, [], {
-              type: 'visualization',
-              id: embeddable.vis.id as string,
-            }).then(async (resp) => {
-              if (resp !== undefined) {
-                const savedObjectsForThisVisualization = get(resp, 'hits', []);
-                if (
-                  maxAssociatedCount <= savedObjectsForThisVisualization.length
-                ) {
-                  notifications.toasts.addDanger(
-                    `Cannot create the detector and associate it to the visualization due to the limit of the max
+            await savedObjectLoader
+              .findAll('', 100, [], {
+                type: 'visualization',
+                id: embeddable.vis.id as string,
+              })
+              .then(async (resp) => {
+                if (resp !== undefined) {
+                  const savedObjectsForThisVisualization = get(
+                    resp,
+                    'hits',
+                    []
+                  );
+                  if (
+                    maxAssociatedCount <=
+                    savedObjectsForThisVisualization.length
+                  ) {
+                    notifications.toasts.addDanger(
+                      `Cannot create the detector and associate it to the visualization due to the limit of the max
                     amount of associated plugin resources (${maxAssociatedCount}) with
                     ${savedObjectsForThisVisualization.length} associated to the visualization`
-                  );
-                } else {
-                  handleSubmit(formikProps);
+                    );
+                  } else {
+                    handleSubmit(formikProps);
+                  }
                 }
-              }
-            });
+              });
           }
         }
       });
@@ -241,19 +248,21 @@ function AddAnomalyDetector({
 
   useEffect(async () => {
     // Gets all augmented saved objects
-    await savedObjectLoader.findAll('', 100, [], {
-      type: 'visualization',
-      id: embeddable.vis.id as string,
-    }).then(async (resp) => {
-      if (resp !== undefined) {
-        const savedObjectsForThisVisualization = get(resp, 'hits', []);
-        if (maxAssociatedCount <= savedObjectsForThisVisualization.length) {
-          setAssociationLimitReached(true);
-        } else {
-          setAssociationLimitReached(false);
+    await savedObjectLoader
+      .findAll('', 100, [], {
+        type: 'visualization',
+        id: embeddable.vis.id as string,
+      })
+      .then(async (resp) => {
+        if (resp !== undefined) {
+          const savedObjectsForThisVisualization = get(resp, 'hits', []);
+          if (maxAssociatedCount <= savedObjectsForThisVisualization.length) {
+            setAssociationLimitReached(true);
+          } else {
+            setAssociationLimitReached(false);
+          }
         }
-      }
-    });
+      });
   }, []);
 
   const getEmbeddableSection = () => {
